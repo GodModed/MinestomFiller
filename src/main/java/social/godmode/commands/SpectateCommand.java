@@ -59,7 +59,8 @@ public class SpectateCommand extends Command {
 
             GameInstance game = GameInstance.getGame(player);
             sender.sendMessage(MM.deserialize("<green>Spectating " + player.getUsername() + "</green>"));
-            sender.sendMessage(MM.deserialize("<gray>Transferring to <white>game-" + game.getUuid()));
+            assert game != null;
+            sender.sendMessage(Main.getTransferMessage("game", game));
             spectatingPlayer.setInvisible(true);
             spectatingPlayer.setInstance(game, player.getPosition());
             spectatingPlayer.getInventory().clear();

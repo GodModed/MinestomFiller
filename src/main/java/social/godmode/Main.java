@@ -20,10 +20,12 @@ import net.minestom.server.event.GlobalEventHandler;
 import net.minestom.server.event.entity.EntityAttackEvent;
 import net.minestom.server.event.item.ItemDropEvent;
 import net.minestom.server.event.player.*;
+import net.minestom.server.event.server.ServerListPingEvent;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.extras.MojangAuth;
+import net.minestom.server.ping.ResponseData;
 import net.minestom.server.potion.Potion;
 import net.minestom.server.potion.PotionEffect;
 import net.minestom.server.registry.DynamicRegistry;
@@ -31,10 +33,15 @@ import net.minestom.server.scoreboard.Team;
 import net.minestom.server.scoreboard.TeamBuilder;
 import net.minestom.server.scoreboard.TeamManager;
 import net.minestom.server.timer.TaskSchedule;
+import net.minestom.server.utils.identity.NamedAndIdentified;
 import net.minestom.server.world.DimensionType;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Random;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 public class Main {
 
@@ -42,7 +49,7 @@ public class Main {
     public static InstanceContainer sharedGameInstance;
 
     private static final MiniMessage MM = MiniMessage.miniMessage();
-    private static final ArrayList<Player> queue = new ArrayList<>();
+    private static final List<Player> queue = new LinkedList<>();
     private static NameTag queueNameTag;
 
     private static final Pos QUEUE_NPC_POSITION = new Pos(0, 1, 10, 180, 0);
@@ -50,11 +57,13 @@ public class Main {
     private static final Vec QUEUE_NAME_TAG_SCALE = new Vec(5);
     private static final Pos PLAYER1_GAME_POS = new Pos(0, 138, -6).withLookAt(new Pos(0, 140, 0));
     private static final Pos PLAYER2_GAME_POS = new Pos(0, 138, 6).withLookAt(new Pos(0, 140, 0));
-
+    private static final String[] MOTD = {"Block by block, let the adventure begin!", "Who needs a plan when you’ve got creativity on tap?", "Mix a little luck with every block, and watch the magic happen.", "Every block tells a story—what’s yours?"};
+    private static final String DIMENSION_ID = "dimension:bright";
+    private static final String TEAM_NAME_TAGS = "name-tags";
+    private static final Random RANDOM = new Random();
 
     public static void main(String[] args) {
         MinecraftServer server = MinecraftServer.init();
-
         // Initialize dimension and instances
         initializeDimensionAndInstances();
 
@@ -81,7 +90,7 @@ public class Main {
                 .ambientLight(1)
                 .fixedTime(18000L)
                 .build();
-        DynamicRegistry.Key<DimensionType> dimensionKey = MinecraftServer.getDimensionTypeRegistry().register("dimension:bright", type);
+        DynamicRegistry.Key<DimensionType> dimensionKey = MinecraftServer.getDimensionTypeRegistry().register(DIMENSION_ID, type);
         lobbyInstance = MinecraftServer.getInstanceManager().createInstanceContainer(dimensionKey);
 
         lobbyInstance.setGenerator(chunk -> chunk.modifier().fillHeight(0, 1, Block.QUARTZ_BRICKS));
@@ -91,7 +100,7 @@ public class Main {
 
     private static NameTagManager initializeNameTags(GlobalEventHandler handler) {
         TeamManager teamManager = MinecraftServer.getTeamManager();
-        Team nameTagTeam = new TeamBuilder("name-tags", teamManager)
+        Team nameTagTeam = new TeamBuilder(TEAM_NAME_TAGS, teamManager)
                 .seeInvisiblePlayers()
                 .build();
         return new NameTagManager(handler, entity -> nameTagTeam);
@@ -99,15 +108,12 @@ public class Main {
 
     private static NPC createQueueNPC(NameTagManager nameTagManager, GlobalEventHandler handler) {
         Consumer<net.minestom.server.event.Event> eventConsumer = event -> {
-            Player player;
-            if (event instanceof PlayerEntityInteractEvent) {
-                player = ((PlayerEntityInteractEvent) event).getPlayer();
-            } else if (event instanceof EntityAttackEvent) {
-                player = (Player) ((EntityAttackEvent) event).getEntity();
-            } else {
-                return;
+            if (event instanceof PlayerEntityInteractEvent interactEvent) {
+                joinQueue(interactEvent.getPlayer());
+            } else if (event instanceof EntityAttackEvent attackEvent) {
+                Player attacked = (Player) attackEvent.getEntity();
+                joinQueue(attacked);
             }
-            joinQueue(player);
         };
 
         NPCManager npcManager = new NPCManager(handler);
@@ -130,26 +136,13 @@ public class Main {
     private static void registerEventListeners(NameTagManager nameTagManager) {
         GlobalEventHandler handler = MinecraftServer.getGlobalEventHandler();
 
-        MinecraftServer.getCommandManager().setUnknownCommandCallback((sender, command) -> {
-            sender.sendMessage(MM.deserialize("<red>Unknown command"));
-        });
+        MinecraftServer.getCommandManager().setUnknownCommandCallback((sender, command) ->
+                sender.sendMessage(MM.deserialize("<red>Unknown command"))
+        );
 
         MinecraftServer.getConnectionManager().setPlayerProvider(GamePlayer::new);
-        MinecraftServer.getSchedulerManager().buildShutdownTask(() -> {
-            for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-                GamePlayer gamePlayer = (GamePlayer) player;
-                gamePlayer.saveStats();
-                gamePlayer.kick(MM.deserialize("<red>Server is shutting down."));
-            }
-        });
 
-        MinecraftServer.getSchedulerManager().submitTask(() -> {
-            for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
-                GamePlayer gamePlayer = (GamePlayer) player;
-                gamePlayer.saveStats();
-            }
-            return TaskSchedule.minutes(1);
-        });
+        setupShutdownTasks();
 
         handler.addListener(AsyncPlayerConfigurationEvent.class, event -> {
             final Player player = event.getPlayer();
@@ -159,52 +152,83 @@ public class Main {
 
         handler.addListener(PlayerDisconnectEvent.class, event -> {
             final Player player = event.getPlayer();
-            Audiences.players().sendMessage(MM.deserialize("<gray>[<red>-</red>]</gray> " + player.getUsername()));
+            final GamePlayer gamePlayer = (GamePlayer) player;
+            Audiences.players().sendMessage(MM.deserialize("<gray>[<red>-</red>]</gray> " + gamePlayer.rank.getPrefix() + " " + gamePlayer.getUsername()));
+            removeFromQueue(player);
 
-            if (queue.contains(player)) {
-                queue.remove(player);
-                updateQueue();
-            }
-
-            GamePlayer gamePlayer = (GamePlayer) player;
             gamePlayer.saveStats();
         });
 
         handler.addListener(PlayerSpawnEvent.class, event -> {
             if (!event.isFirstSpawn()) return;
-            final Player player = event.getPlayer();
+            final GamePlayer player = (GamePlayer) event.getPlayer();
 
             Potion potion = new Potion(PotionEffect.JUMP_BOOST, 1, Potion.INFINITE_DURATION);
             player.addEffect(potion);
 
-            GamePlayer gamePlayer = (GamePlayer) player;
-            gamePlayer.initializeSidebar();
-            gamePlayer.initializeNameTag(nameTagManager);
+            player.initializeSidebar();
+            player.initializeNameTag(nameTagManager);
 
-            Audiences.players().sendMessage(MM.deserialize("<gray>[<green>+</green>]</gray> " + gamePlayer.rank.getPrefix() + " " + player.getUsername()));
+            Audiences.players().sendMessage(MM.deserialize("<gray>[<green>+</green>]</gray> " + player.rank.getPrefix() + " " + player.getUsername()));
         });
 
         handler.addListener(PlayerChatEvent.class, event -> {
             event.setCancelled(true);
-            final Player player = event.getPlayer();
-            GamePlayer gamePlayer = (GamePlayer) player;
+            GamePlayer player = (GamePlayer) event.getPlayer();
             String message = event.getRawMessage();
-            Audiences.players().sendMessage(MM.deserialize(gamePlayer.rank.getPrefix() + " " + player.getUsername() + "<white> → " + message));
+            Audiences.players().sendMessage(MM.deserialize(player.rank.getPrefix() + " " + player.getUsername() + "<white> → " + message));
         });
 
+        handler.addListener(ServerListPingEvent.class, event -> {
+            ResponseData responseData = event.getResponseData();
+
+            // Random max player count
+            int maxPlayers = 1_000_000_000 + RANDOM.nextInt(Integer.MAX_VALUE - 1_000_000_000);
+            responseData.setMaxPlayer(maxPlayers);
+
+            // Add player entries
+            for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
+                GamePlayer gamePlayer = (GamePlayer) player;
+                Component nameTagText = MM.deserialize(gamePlayer.rank.getPrefix() + " " + player.getUsername());
+                responseData.addEntry(NamedAndIdentified.of(nameTagText, player.getUuid()));
+            }
+
+            // Set MOTD and Favicon
+            String motd = MOTD[RANDOM.nextInt(MOTD.length)];
+            responseData.setFavicon("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NYqtf7HwAFPAJgumgTFgAAAABJRU5ErkJggg==");
+            responseData.setDescription(MM.deserialize("<b><gradient:#4169e1:#ff00ff><obf>*</obf> Filler <obf>*</obf></gradient></b><newline><gray>" + motd));
+        });
+
+        // Cancel item dropping and block placement/breaking
         handler.addListener(ItemDropEvent.class, event -> event.setCancelled(true));
         handler.addListener(PlayerBlockPlaceEvent.class, event -> event.setCancelled(true));
         handler.addListener(PlayerBlockBreakEvent.class, event -> event.setCancelled(true));
     }
 
-    private static void joinQueue(Player player) {
+    private static void setupShutdownTasks() {
+        MinecraftServer.getSchedulerManager().buildShutdownTask(() -> {
+            for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
+                GamePlayer gamePlayer = (GamePlayer) player;
+                gamePlayer.saveStats();
+                gamePlayer.kick(MM.deserialize("<red>Server is shutting down."));
+            }
+        });
 
+        MinecraftServer.getSchedulerManager().submitTask(() -> {
+            MinecraftServer.getConnectionManager().getOnlinePlayers().forEach(player -> {
+                GamePlayer gamePlayer = (GamePlayer) player;
+                gamePlayer.saveStats();
+            });
+            return TaskSchedule.minutes(1);
+        });
+    }
+
+    private static void joinQueue(Player player) {
         if (GameInstance.isInGame(player)) return;
 
         if (queue.contains(player)) {
+            removeFromQueue(player);
             player.sendMessage(MM.deserialize("<red>You have left the queue."));
-            queue.remove(player);
-            updateQueue();
             return;
         }
 
@@ -213,26 +237,23 @@ public class Main {
         player.sendMessage(MM.deserialize("<green>You have joined the queue."));
 
         if (queue.size() >= 2) {
-            Player player1 = queue.removeFirst();
-            Player player2 = queue.removeFirst();
+            GamePlayer player1 = (GamePlayer) queue.removeFirst();
+            GamePlayer player2 = (GamePlayer) queue.removeFirst();
 
             // Randomize player order
-            if (Math.random() > 0.5) {
-                Player temp = player1;
+            if (RANDOM.nextDouble() > 0.5) {
+                GamePlayer temp = player1;
                 player1 = player2;
                 player2 = temp;
             }
 
-            GamePlayer gamePlayer1 = (GamePlayer) player1;
-            GamePlayer gamePlayer2 = (GamePlayer) player2;
-
-            Component message = MM.deserialize("<green>Match found! " + gamePlayer1.rank.getPrefix() + " " + player1.getUsername() + "<green> vs " + gamePlayer2.rank.getPrefix() + " " + player2.getUsername());
+            Component message = MM.deserialize("<green>Match found! " + player1.rank.getPrefix() + " " + player1.getUsername() + "<green> vs " + player2.rank.getPrefix() + " " + player2.getUsername());
             player1.sendMessage(message);
             player2.sendMessage(message);
 
             GameInstance gameInstance = new GameInstance(player1, player2);
 
-            Component transferMessage = MM.deserialize("<gray>Transferring to <white>game-" + gameInstance.getUuid());
+            Component transferMessage = getTransferMessage("game", gameInstance);
             player1.sendMessage(transferMessage);
             player2.sendMessage(transferMessage);
 
@@ -243,7 +264,19 @@ public class Main {
         }
     }
 
+    private static void removeFromQueue(Player player) {
+        boolean removed = queue.remove(player);
+        if (removed) {
+            updateQueue();
+        }
+    }
+
     private static void updateQueue() {
         queueNameTag.setText(MM.deserialize("<gradient:#4169e1:#ff00ff><bold>QUEUE</bold> " + queue.size() + "</gradient>"));
+    }
+
+    public static Component getTransferMessage(String name, Instance instance) {
+        String hexUUID = Long.toHexString(instance.getUuid().getLeastSignificantBits());
+        return MM.deserialize("<gray>Transferring to <white>" + name +  "-" + hexUUID);
     }
 }

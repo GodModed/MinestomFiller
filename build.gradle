@@ -14,8 +14,9 @@ repositories {
 
 dependencies {
     implementation 'com.google.code.gson:gson:2.12.1'
-    implementation 'com.github.GodModed:FillerAPI:f0884bd'
+    implementation 'com.github.GodModed:FillerAPI:b45fe41'
     implementation 'dev.hollowcube:schem:1.3.1'
+    implementation 'org.xerial:sqlite-jdbc:3.48.0.0'
     implementation 'net.minestom:minestom-snapshots:32735340d7'
     implementation 'net.kyori:adventure-text-minimessage:4.18.0'
     implementation("com.github.echolightmc:MSNPCs:1.4-SNAPSHOT") {

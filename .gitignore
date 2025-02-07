@@ -17,6 +17,7 @@ out/
 !**/src/test/**/out/
 
 data/
+playerdata.db
 
 ### Eclipse ###
 .apt_generated
