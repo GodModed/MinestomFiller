@@ -15,7 +15,7 @@ public class ReplayCommand extends Command {
         super("replay");
 
         setDefaultExecutor((sender, context) -> {
-            sender.sendMessage("Usage: /replay");
+            sender.sendMessage("Usage: /replay <id>");
         });
 
         Argument<Integer> id = new ArgumentInteger("id")
