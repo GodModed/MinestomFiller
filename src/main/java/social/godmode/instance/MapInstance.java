@@ -1,7 +1,6 @@
-package social.godmode;
+package social.godmode.instance;
 
 import net.minestom.server.MinecraftServer;
-import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.anvil.AnvilLoader;
 import net.minestom.server.instance.block.Block;

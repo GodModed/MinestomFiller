@@ -4,19 +4,13 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.arguments.Argument;
-import net.minestom.server.command.builder.arguments.ArgumentString;
 import net.minestom.server.command.builder.arguments.ArgumentWord;
-import net.minestom.server.command.builder.arguments.minecraft.ArgumentEntity;
 import net.minestom.server.command.builder.suggestion.SuggestionEntry;
-import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.Player;
 import net.minestom.server.item.ItemComponent;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
-import net.minestom.server.potion.Potion;
-import net.minestom.server.potion.PotionEffect;
-import net.minestom.server.utils.entity.EntityFinder;
-import social.godmode.GameInstance;
+import social.godmode.instance.GameInstance;
 import social.godmode.Main;
 
 public class SpectateCommand extends Command {

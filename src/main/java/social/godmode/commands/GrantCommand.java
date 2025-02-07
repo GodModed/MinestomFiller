@@ -1,6 +1,5 @@
 package social.godmode.commands;
 
-import com.sun.source.tree.ReturnTree;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.arguments.Argument;
@@ -8,9 +7,8 @@ import net.minestom.server.command.builder.arguments.ArgumentEnum;
 import net.minestom.server.command.builder.arguments.minecraft.ArgumentEntity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.utils.entity.EntityFinder;
-import org.jetbrains.annotations.NotNull;
-import social.godmode.GamePlayer;
-import social.godmode.PlayerRank;
+import social.godmode.user.GamePlayer;
+import social.godmode.user.PlayerRank;
 
 public class GrantCommand extends Command {
 

@@ -1,4 +1,4 @@
-package social.godmode;
+package social.godmode.instance;
 
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
@@ -27,12 +27,13 @@ import social.godmode.FillerAPI.Filler;
 import social.godmode.FillerAPI.FillerBlock;
 import social.godmode.FillerAPI.FillerColor;
 import social.godmode.FillerAPI.FillerPlayer;
+import social.godmode.replay.Replay;
+import social.godmode.user.GamePlayer;
+import social.godmode.Main;
 
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.*;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class GameInstance extends SharedInstance {
@@ -48,12 +49,17 @@ public class GameInstance extends SharedInstance {
 
     public final GamePlayer player1;
     public final GamePlayer player2;
-    public final ArrayList<Player> spectators = new ArrayList<>();
+    public final List<Player> spectators = new ArrayList<>();
     private final Filler filler;
     private final Entity[][] board = new Entity[8][8];
     private final Entity[] playerScoreTextDisplays = new Entity[2];
+    private final List<FillerColor> moves = new ArrayList<>();
 
     public GameInstance(GamePlayer player1, GamePlayer player2) {
+        this(player1, player2, new Random().nextLong());
+    }
+
+    public GameInstance(GamePlayer player1, GamePlayer player2, long seed) {
         super(UUID.randomUUID(), Main.sharedGameInstance);
         MinecraftServer.getInstanceManager().registerSharedInstance(this);
 
@@ -63,7 +69,7 @@ public class GameInstance extends SharedInstance {
         this.player2 = player2;
         player2.inGame = true;
 
-        filler = new Filler(player1.getUuid(), player2.getUuid());
+        filler = new Filler(seed, player1.getUuid(), player2.getUuid());
 
         initializeBoardVisuals();
         initializeScoreDisplays();
@@ -149,6 +155,7 @@ public class GameInstance extends SharedInstance {
 
     private void performPlayerTurn(GamePlayer player, FillerColor color) {
         filler.getCurrentPlayer().turn(color);
+        moves.add(color);
 
         for (Player p : getPlayers()) {
             playSound(p, SOUND_KEY, 1, 5);
@@ -183,6 +190,10 @@ public class GameInstance extends SharedInstance {
         GamePlayer loser = (GamePlayer) (loserPlayer != null ? MinecraftServer.getConnectionManager().getOnlinePlayerByUuid(loserPlayer.playerUUID) : null);
 
         if (winner != null && loser != null) {
+            Replay replay = new Replay(filler.getSeed(), moves, winner.getUuid(), loser.getUuid());
+            int replayID = Main.REPLAY_MANAGER.saveReplay(replay);
+            winner.replayIDs.add(replayID);
+            loser.replayIDs.add(replayID);
             announceWinnerAndLoser(winner, loser);
             cleanupAndReturnToLobby();
         } else {

@@ -1,4 +1,4 @@
-package social.godmode;
+package social.godmode.user;
 
 public enum PlayerRank {
     DEFAULT,

@@ -2,9 +2,8 @@ package social.godmode.commands;
 
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.command.builder.Command;
-import net.minestom.server.entity.Player;
-import social.godmode.GamePlayer;
-import social.godmode.PlayerRank;
+import social.godmode.user.GamePlayer;
+import social.godmode.user.PlayerRank;
 
 public class StopCommand extends Command {
     public StopCommand() {

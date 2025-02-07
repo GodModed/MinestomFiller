@@ -35,13 +35,15 @@ import net.minestom.server.scoreboard.TeamManager;
 import net.minestom.server.timer.TaskSchedule;
 import net.minestom.server.utils.identity.NamedAndIdentified;
 import net.minestom.server.world.DimensionType;
+import social.godmode.instance.GameInstance;
+import social.godmode.instance.MapInstance;
+import social.godmode.replay.ReplayManager;
+import social.godmode.user.GamePlayer;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Consumer;
-import java.util.logging.Logger;
 
 public class Main {
 
@@ -55,12 +57,13 @@ public class Main {
     private static final Pos QUEUE_NPC_POSITION = new Pos(0, 1, 10, 180, 0);
     private static final Pos QUEUE_NAME_TAG_TRANSLATION = new Pos(0, 4, 0);
     private static final Vec QUEUE_NAME_TAG_SCALE = new Vec(5);
-    private static final Pos PLAYER1_GAME_POS = new Pos(0, 138, -6).withLookAt(new Pos(0, 140, 0));
-    private static final Pos PLAYER2_GAME_POS = new Pos(0, 138, 6).withLookAt(new Pos(0, 140, 0));
+    public static final Pos PLAYER1_GAME_POS = new Pos(0, 138, -6).withLookAt(new Pos(0, 140, 0));
+    public static final Pos PLAYER2_GAME_POS = new Pos(0, 138, 6).withLookAt(new Pos(0, 140, 0));
     private static final String[] MOTD = {"Block by block, let the adventure begin!", "Who needs a plan when you’ve got creativity on tap?", "Mix a little luck with every block, and watch the magic happen.", "Every block tells a story—what’s yours?"};
     private static final String DIMENSION_ID = "dimension:bright";
     private static final String TEAM_NAME_TAGS = "name-tags";
     private static final Random RANDOM = new Random();
+    public static final ReplayManager REPLAY_MANAGER = new ReplayManager();
 
     public static void main(String[] args) {
         MinecraftServer server = MinecraftServer.init();
@@ -226,11 +229,11 @@ public class Main {
     private static void joinQueue(Player player) {
         if (GameInstance.isInGame(player)) return;
 
-        if (queue.contains(player)) {
-            removeFromQueue(player);
-            player.sendMessage(MM.deserialize("<red>You have left the queue."));
-            return;
-        }
+//        if (queue.contains(player)) {
+//            removeFromQueue(player);
+//            player.sendMessage(MM.deserialize("<red>You have left the queue."));
+//            return;
+//        }
 
         queue.add(player);
         updateQueue();
