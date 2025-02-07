@@ -44,7 +44,7 @@ public class GameInstance extends SharedInstance {
     private static final Vec TEXT_DISPLAY_SCALE = new Vec(2);
     public static final ArrayList<GameInstance> games = new ArrayList<>();
     private static final Key SOUND_KEY = Key.key("minecraft", "ui.hud.bubble_pop");
-    private static final Potion DARKNESS_POTION = new Potion(PotionEffect.DARKNESS, 1, 60);
+    public static final Potion DARKNESS_POTION = new Potion(PotionEffect.DARKNESS, 1, 60);
     private static final String SPECTATOR_LEAVE_MESSAGE = "<red>You are no longer spectating.</red>";
 
     public final GamePlayer player1;
@@ -350,7 +350,7 @@ public class GameInstance extends SharedInstance {
         }
     }
 
-    public Material fillerColorToMaterial(FillerColor color) {
+    public static Material fillerColorToMaterial(FillerColor color) {
         return switch (color) {
             case RED -> Material.RED_CONCRETE;
             case GREEN -> Material.GREEN_CONCRETE;
@@ -361,7 +361,7 @@ public class GameInstance extends SharedInstance {
         };
     }
 
-    public FillerColor materialToFillerColor(Material material) {
+    public static FillerColor materialToFillerColor(Material material) {
         if (material.equals(Material.RED_CONCRETE)) {
             return FillerColor.RED;
         } else if (material.equals(Material.GREEN_CONCRETE)) {
