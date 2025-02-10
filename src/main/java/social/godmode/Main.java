@@ -4,6 +4,7 @@ import com.github.echolightmc.msnametags.NameTag;
 import com.github.echolightmc.msnametags.NameTagManager;
 import com.github.echolightmc.msnpcs.NPC;
 import com.github.echolightmc.msnpcs.NPCManager;
+import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.minestom.server.MinecraftServer;
@@ -21,6 +22,7 @@ import net.minestom.server.event.entity.EntityAttackEvent;
 import net.minestom.server.event.item.ItemDropEvent;
 import net.minestom.server.event.player.*;
 import net.minestom.server.event.server.ServerListPingEvent;
+import net.minestom.server.event.server.ServerTickMonitorEvent;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.InstanceContainer;
 import net.minestom.server.instance.block.Block;
@@ -40,6 +42,7 @@ import social.godmode.instance.MapInstance;
 import social.godmode.replay.ReplayManager;
 import social.godmode.user.GamePlayer;
 
+import java.text.DecimalFormat;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -200,6 +203,26 @@ public class Main {
             String motd = MOTD[RANDOM.nextInt(MOTD.length)];
             responseData.setFavicon("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NYqtf7HwAFPAJgumgTFgAAAABJRU5ErkJggg==");
             responseData.setDescription(MM.deserialize("<b><gradient:#4169e1:#ff00ff><obf>*</obf> Filler <obf>*</obf></gradient></b><newline><gray>" + motd));
+        });
+
+        BossBar bossBar = BossBar.bossBar(Component.empty(), 1f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
+        DecimalFormat dec = new DecimalFormat("0.00");
+        MinecraftServer.getGlobalEventHandler().addListener(ServerTickMonitorEvent.class, e -> {
+            double tickTime = Math.floor(e.getTickMonitor().getTickTime() * 100.0) / 100.0;
+            bossBar.name(
+                    Component.text()
+                            .append(Component.text("MSPT: " + dec.format(tickTime)))
+            );
+            bossBar.progress(Math.min((float)tickTime / (float)MinecraftServer.TICK_MS, 1f));
+
+            if (tickTime > MinecraftServer.TICK_MS) {
+                bossBar.color(BossBar.Color.RED);
+            } else {
+                bossBar.color(BossBar.Color.GREEN);
+            }
+        });
+        MinecraftServer.getGlobalEventHandler().addListener(PlayerSpawnEvent.class, e -> {
+            e.getPlayer().showBossBar(bossBar);
         });
 
         // Cancel item dropping and block placement/breaking

@@ -3,55 +3,34 @@ package social.godmode.instance;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.advancements.FrameType;
 import net.minestom.server.advancements.Notification;
-import net.minestom.server.coordinate.Pos;
-import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.EntityType;
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.metadata.display.AbstractDisplayMeta;
-import net.minestom.server.entity.metadata.display.BlockDisplayMeta;
 import net.minestom.server.entity.metadata.display.TextDisplayMeta;
 import net.minestom.server.event.player.PlayerDisconnectEvent;
 import net.minestom.server.event.player.PlayerUseItemEvent;
-import net.minestom.server.instance.SharedInstance;
 import net.minestom.server.item.ItemComponent;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
-import net.minestom.server.potion.Potion;
-import net.minestom.server.potion.PotionEffect;
 import social.godmode.FillerAPI.Filler;
-import social.godmode.FillerAPI.FillerBlock;
 import social.godmode.FillerAPI.FillerColor;
 import social.godmode.FillerAPI.FillerPlayer;
+import social.godmode.Main;
 import social.godmode.replay.Replay;
 import social.godmode.user.GamePlayer;
-import social.godmode.Main;
 
-import java.awt.*;
 import java.util.*;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public class GameInstance extends SharedInstance {
-
-    private static final MiniMessage MM = MiniMessage.miniMessage();
-    private static final Pos SCORE_TEXT_DISPLAY_POS_PLAYER1 = new Pos(-4, 148, 0.5);
-    private static final Pos SCORE_TEXT_DISPLAY_POS_PLAYER2 = new Pos(4, 148, 0.5);
-    private static final Vec TEXT_DISPLAY_SCALE = new Vec(2);
-    public static final ArrayList<GameInstance> games = new ArrayList<>();
-    private static final Key SOUND_KEY = Key.key("minecraft", "ui.hud.bubble_pop");
-    public static final Potion DARKNESS_POTION = new Potion(PotionEffect.DARKNESS, 1, 60);
-    private static final String SPECTATOR_LEAVE_MESSAGE = "<red>You are no longer spectating.</red>";
+public class GameInstance extends AbstractFillerInstance {
 
     public final GamePlayer player1;
     public final GamePlayer player2;
     public final List<Player> spectators = new ArrayList<>();
-    private final Filler filler;
-    private final Entity[][] board = new Entity[8][8];
     private final Entity[] playerScoreTextDisplays = new Entity[2];
     private final List<FillerColor> moves = new ArrayList<>();
 
@@ -60,18 +39,15 @@ public class GameInstance extends SharedInstance {
     }
 
     public GameInstance(GamePlayer player1, GamePlayer player2, long seed) {
-        super(UUID.randomUUID(), Main.sharedGameInstance);
-        MinecraftServer.getInstanceManager().registerSharedInstance(this);
+        super(UUID.randomUUID(), new Filler(seed, player1.getUuid(), player2.getUuid()));
 
         this.player1 = player1;
         player1.inGame = true;
 
         this.player2 = player2;
         player2.inGame = true;
+        games.add(this);
 
-        filler = new Filler(seed, player1.getUuid(), player2.getUuid());
-
-        initializeBoardVisuals();
         initializeScoreDisplays();
         updateVisuals();
         sendTurnMessage();
@@ -79,28 +55,7 @@ public class GameInstance extends SharedInstance {
         setHotBar(player1);
         setHotBar(player2);
 
-        games.add(this);
     }
-
-    private void initializeBoardVisuals() {
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                Entity blockDisplay = createBlockDisplayEntity(x, y);
-                board[x][y] = blockDisplay;
-            }
-        }
-    }
-
-    private Entity createBlockDisplayEntity(int x, int y) {
-        Entity blockDisplay = new Entity(EntityType.BLOCK_DISPLAY);
-        blockDisplay.setNoGravity(true);
-        blockDisplay.setInstance(this, new Pos(x - 4, y + 138, 0));
-        BlockDisplayMeta blockDisplayMeta = (BlockDisplayMeta) blockDisplay.getEntityMeta();
-        FillerBlock fillerBlock = filler.getBoard()[x][y];
-        blockDisplayMeta.setBlockState(fillerColorToMaterial(fillerBlock.getColor()).block());
-        return blockDisplay;
-    }
-
     private void initializeScoreDisplays() {
         for (int i = 0; i < 2; i++) {
             Entity scoreTextDisplay = createScoreTextDisplayEntity(i);
@@ -125,7 +80,6 @@ public class GameInstance extends SharedInstance {
             GamePlayer player = (GamePlayer) event.getPlayer();
             ItemStack itemStack = event.getItemStack();
 
-            // Handle spectator leaving
             if (itemStack.material() == Material.RED_DYE) {
                 handleSpectatorLeave(player);
                 return;
@@ -226,22 +180,6 @@ public class GameInstance extends SharedInstance {
         playSound(loser, Key.key("minecraft", "entity.villager.no"), 1, 1);
     }
 
-    private CompletableFuture<Void> teleportPlayerToLobby(GamePlayer player) {
-        if (!player.isOnline()) return CompletableFuture.completedFuture(null);
-
-        clearPlayerInventory(player);
-        player.addEffect(DARKNESS_POTION);
-        player.inGame = false;
-
-        if (player.isInvisible()) {
-            player.setInvisible(false);
-        }
-
-        player.sendMessage(Main.getTransferMessage("lobby", Main.lobbyInstance));
-
-        return player.setInstance(Main.lobbyInstance);
-    }
-
     private void cleanupAndReturnToLobby() {
         games.remove(this);
 
@@ -256,9 +194,6 @@ public class GameInstance extends SharedInstance {
         CompletableFuture.allOf(futures).thenRun(() -> MinecraftServer.getInstanceManager().unregisterInstance(this));
     }
 
-    private void clearPlayerInventory(Player player) {
-        player.getInventory().clear();
-    }
 
     public void sendTurnMessage() {
         FillerPlayer currentFillerPlayer = filler.getCurrentPlayer();
@@ -271,34 +206,11 @@ public class GameInstance extends SharedInstance {
         }
     }
 
+    @Override
     public void updateVisuals() {
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                updateBlockDisplayVisual(x, y);
-            }
-        }
-        highlightCurrentPlayerOwnedBlocks();
+        super.updateVisuals();
         updateScoreDisplays();
     }
-
-    private void updateBlockDisplayVisual(int x, int y) {
-        Entity blockDisplay = board[x][y];
-        blockDisplay.setGlowing(false);
-        BlockDisplayMeta blockDisplayMeta = (BlockDisplayMeta) blockDisplay.getEntityMeta();
-        FillerBlock fillerBlock = filler.getBoard()[x][y];
-        blockDisplayMeta.setBlockState(fillerColorToMaterial(fillerBlock.getColor()).block());
-    }
-
-    private void highlightCurrentPlayerOwnedBlocks() {
-        List<FillerBlock> ownedBlocks = filler.getCurrentPlayer().getOwnedBlocks();
-        for (FillerBlock ownedBlock : ownedBlocks) {
-            Entity blockDisplay = board[ownedBlock.getX()][ownedBlock.getY()];
-            BlockDisplayMeta blockDisplayMeta = (BlockDisplayMeta) blockDisplay.getEntityMeta();
-            blockDisplayMeta.setGlowColorOverride(Color.WHITE.getRGB());
-            blockDisplay.setGlowing(true);
-        }
-    }
-
     private void updateScoreDisplays() {
         for (int i = 0; i < 2; i++) {
             FillerPlayer fillerPlayer = filler.getPlayers()[i];
@@ -348,57 +260,5 @@ public class GameInstance extends SharedInstance {
                 player.getInventory().setItemStack(i++, item);
             }
         }
-    }
-
-    public static Material fillerColorToMaterial(FillerColor color) {
-        return switch (color) {
-            case RED -> Material.RED_CONCRETE;
-            case GREEN -> Material.GREEN_CONCRETE;
-            case BLUE -> Material.BLUE_CONCRETE;
-            case YELLOW -> Material.YELLOW_CONCRETE;
-            case PURPLE -> Material.PURPLE_CONCRETE;
-            case BLACK -> Material.BLACK_CONCRETE;
-        };
-    }
-
-    public static FillerColor materialToFillerColor(Material material) {
-        if (material.equals(Material.RED_CONCRETE)) {
-            return FillerColor.RED;
-        } else if (material.equals(Material.GREEN_CONCRETE)) {
-            return FillerColor.GREEN;
-        } else if (material.equals(Material.BLUE_CONCRETE)) {
-            return FillerColor.BLUE;
-        } else if (material.equals(Material.YELLOW_CONCRETE)) {
-            return FillerColor.YELLOW;
-        } else if (material.equals(Material.PURPLE_CONCRETE)) {
-            return FillerColor.PURPLE;
-        } else if (material.equals(Material.BLACK_CONCRETE)) {
-            return FillerColor.BLACK;
-        } else {
-            return null;
-        }
-    }
-
-    public String fillerColorToHex(FillerColor color) {
-        int rgb = color.color.getRGB();
-        return String.format("#%06X", (0xFFFFFF & rgb));
-    }
-
-    public static boolean isInGame(Player player) {
-        for (GameInstance game : games) {
-            if (game.player1 == player || game.player2 == player) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public static GameInstance getGame(Player player) {
-        for (GameInstance game : games) {
-            if (game.player1 == player || game.player2 == player) {
-                return game;
-            }
-        }
-        return null;
     }
 }
