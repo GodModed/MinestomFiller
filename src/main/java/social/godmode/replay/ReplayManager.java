@@ -60,7 +60,7 @@ public class ReplayManager {
         } catch (SQLException e) {
             log.error("Error saving replay", e);
         }
-        return -1; // or any other appropriate default value
+        return -1;
     }
 
     public Replay loadReplay(int id) {

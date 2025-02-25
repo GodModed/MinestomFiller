@@ -115,60 +115,23 @@ public class GamePlayer extends Player {
 
     private void createTableIfNotExists() {
         try (Connection connection = DriverManager.getConnection(DATABASE_URL)) {
-            int currentVersion = getDatabaseVersion(connection);
 
-            if (currentVersion < 1) {
-                // Initial table creation (version 1)
-                try (Statement statement = connection.createStatement()) {
-                    String sql = "CREATE TABLE IF NOT EXISTS player_stats (" +
-                            "uuid TEXT PRIMARY KEY," +
-                            "wins INTEGER," +
-                            "losses INTEGER," +
-                            "rank TEXT" +
-                            ")";
-                    statement.execute(sql);
-                }
-                setDatabaseVersion(connection, 1);
-                currentVersion = 1; // Update currentVersion after successful creation
+            try (Statement statement = connection.createStatement()) {
+                String sql = "CREATE TABLE IF NOT EXISTS player_stats (" +
+                        "uuid TEXT PRIMARY KEY," +
+                        "wins INTEGER," +
+                        "losses INTEGER," +
+                        "rank TEXT," +
+                        "replays TEXT" +
+                        ")";
+                statement.execute(sql);
             }
-
-            if (currentVersion < 2) {
-                // Add the 'replays' column (version 2)
-                try (Statement statement = connection.createStatement()) {
-                    statement.execute("ALTER TABLE player_stats ADD COLUMN replays TEXT");
-                }
-                setDatabaseVersion(connection, 2);
-                currentVersion = 2;
-            }
-
-
-            // Add more 'if (currentVersion < ...)' blocks here for future schema updates
 
         } catch (SQLException e) {
             log.error("Error creating or updating table", e);
         }
     }
 
-    private int getDatabaseVersion(Connection connection) throws SQLException {
-        try (Statement statement = connection.createStatement()) {
-            try {
-                ResultSet rs = statement.executeQuery("PRAGMA user_version;");
-                if (rs.next()) {
-                    return rs.getInt(1);
-                }
-            } catch (SQLException e) {
-                // PRAGMA user_version might not be supported, or table might not exist.  Assume version 0.
-                return 0;
-            }
-        }
-        return 0;
-    }
-
-    private void setDatabaseVersion(Connection connection, int version) throws SQLException {
-        try (Statement statement = connection.createStatement()) {
-            statement.execute("PRAGMA user_version = " + version + ";");
-        }
-    }
     public void loadStats() {
         try (Connection connection = DriverManager.getConnection(DATABASE_URL);
              PreparedStatement preparedStatement = connection.prepareStatement(
@@ -182,23 +145,20 @@ public class GamePlayer extends Player {
                 losses = resultSet.getInt("losses");
                 rank = PlayerRank.valueOf(resultSet.getString("rank"));
 
-                // Handle potential null or empty string for replays
                 String replaysString = resultSet.getString("replays");
                 if (replaysString != null && !replaysString.isEmpty()) {
-                    // Use streams for more concise parsing
                     try {
                         replayIDs = Arrays.stream(replaysString.substring(1, replaysString.length() - 1).split(", "))
-                                .filter(s -> !s.isEmpty())  // Handle empty strings in the split
+                                .filter(s -> !s.isEmpty())
                                 .map(Integer::parseInt)
                                 .collect(Collectors.toSet());
                     } catch (NumberFormatException e) {
                         log.warn("Invalid replay ID format for player {}: {}", getUuid(), replaysString);
-                        replayIDs.clear(); // Or some other appropriate error handling
+                        replayIDs.clear();
                     }
 
                 }
             } else {
-                //If no data, save default stats
                 saveStats();
             }
 
@@ -217,7 +177,6 @@ public class GamePlayer extends Player {
             preparedStatement.setInt(3, losses);
             preparedStatement.setString(4, rank.name());
             preparedStatement.setString(5, replayIDs.toString());
-            // For the ON CONFLICT clause (update existing row):
             preparedStatement.setInt(6, wins);
             preparedStatement.setInt(7, losses);
             preparedStatement.setString(8, rank.name());

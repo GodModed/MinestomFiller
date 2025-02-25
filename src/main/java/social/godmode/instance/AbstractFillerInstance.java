@@ -17,6 +17,7 @@ import net.minestom.server.potion.PotionEffect;
 import social.godmode.FillerAPI.Filler;
 import social.godmode.FillerAPI.FillerBlock;
 import social.godmode.FillerAPI.FillerColor;
+import social.godmode.FillerAPI.FillerPlayer;
 import social.godmode.Main;
 import social.godmode.user.GamePlayer;
 
@@ -53,6 +54,10 @@ public abstract class AbstractFillerInstance extends SharedInstance {
                 entities[x][y] = createBlockDisplayEntity(x, y);
             }
         }
+    }
+
+    public FillerPlayer getCurrentPlayer() {
+        return filler.getCurrentPlayer();
     }
 
     protected Entity createBlockDisplayEntity(int x, int y) {

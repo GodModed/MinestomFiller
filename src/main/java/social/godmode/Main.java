@@ -70,23 +70,18 @@ public class Main {
 
     public static void main(String[] args) {
         MinecraftServer server = MinecraftServer.init();
-        // Initialize dimension and instances
         initializeDimensionAndInstances();
 
-        // Initialize name tags and NPCs
         NameTagManager nameTagManager = initializeNameTags(MinecraftServer.getGlobalEventHandler());
         NPC queueNPC = createQueueNPC(nameTagManager, MinecraftServer.getGlobalEventHandler());
 
-        // Set the queue name tag
         queueNameTag = nameTagManager.createNameTag(queueNPC);
         configureQueueNameTag();
         updateQueue();
 
-        // Register event listeners
         registerEventListeners(nameTagManager);
         CommandLoader.loadCommands();
 
-        // Enable Mojang authentication and start the server
         MojangAuth.init();
         server.start("0.0.0.0", 25565);
     }
@@ -188,18 +183,16 @@ public class Main {
         handler.addListener(ServerListPingEvent.class, event -> {
             ResponseData responseData = event.getResponseData();
 
-            // Random max player count
             int maxPlayers = 1_000_000_000 + RANDOM.nextInt(Integer.MAX_VALUE - 1_000_000_000);
             responseData.setMaxPlayer(maxPlayers);
 
-            // Add player entries
+
             for (Player player : MinecraftServer.getConnectionManager().getOnlinePlayers()) {
                 GamePlayer gamePlayer = (GamePlayer) player;
                 Component nameTagText = MM.deserialize(gamePlayer.rank.getPrefix() + " " + player.getUsername());
                 responseData.addEntry(NamedAndIdentified.of(nameTagText, player.getUuid()));
             }
 
-            // Set MOTD and Favicon
             String motd = MOTD[RANDOM.nextInt(MOTD.length)];
             responseData.setFavicon("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NYqtf7HwAFPAJgumgTFgAAAABJRU5ErkJggg==");
             responseData.setDescription(MM.deserialize("<b><gradient:#4169e1:#ff00ff><obf>*</obf> Filler <obf>*</obf></gradient></b><newline><gray>" + motd));
@@ -225,7 +218,6 @@ public class Main {
             e.getPlayer().showBossBar(bossBar);
         });
 
-        // Cancel item dropping and block placement/breaking
         handler.addListener(ItemDropEvent.class, event -> event.setCancelled(true));
         handler.addListener(PlayerBlockPlaceEvent.class, event -> event.setCancelled(true));
         handler.addListener(PlayerBlockBreakEvent.class, event -> event.setCancelled(true));
@@ -252,11 +244,11 @@ public class Main {
     private static void joinQueue(Player player) {
         if (GameInstance.isInGame(player)) return;
 
-//        if (queue.contains(player)) {
-//            removeFromQueue(player);
-//            player.sendMessage(MM.deserialize("<red>You have left the queue."));
-//            return;
-//        }
+        if (queue.contains(player)) {
+            removeFromQueue(player);
+            player.sendMessage(MM.deserialize("<red>You have left the queue."));
+            return;
+        }
 
         queue.add(player);
         updateQueue();

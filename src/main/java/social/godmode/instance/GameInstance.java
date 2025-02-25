@@ -107,7 +107,7 @@ public class GameInstance extends AbstractFillerInstance {
         player.setInstance(Main.lobbyInstance);
     }
 
-    private void performPlayerTurn(GamePlayer player, FillerColor color) {
+    public void performPlayerTurn(GamePlayer player, FillerColor color) {
         filler.getCurrentPlayer().turn(color);
         moves.add(color);
 

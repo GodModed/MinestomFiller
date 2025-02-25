@@ -26,7 +26,7 @@ public class CommandLoader {
                 Command command = constructor.newInstance();
                 commandManager.register(command);
 
-                System.out.println("Registered command: " + commandClass.getName()); // Good for debugging
+                System.out.println("Registered command: " + commandClass.getName());
 
             } catch (NoSuchMethodException e) {
                 System.err.println("Error: Command class " + commandClass.getName() + " must have a default (no-argument) constructor.");
