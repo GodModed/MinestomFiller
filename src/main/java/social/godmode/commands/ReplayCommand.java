@@ -1,5 +1,6 @@
 package social.godmode.commands;
 
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.command.builder.arguments.number.ArgumentInteger;
@@ -11,6 +12,9 @@ import social.godmode.replay.Replay;
 import social.godmode.user.GamePlayer;
 
 public class ReplayCommand extends Command {
+
+    private static final MiniMessage MM = MiniMessage.miniMessage();
+
     public ReplayCommand() {
         super("replay");
 
@@ -30,19 +34,19 @@ public class ReplayCommand extends Command {
             GamePlayer gamePlayer = (GamePlayer) sender;
 
             if (gamePlayer.inGame) {
-                sender.sendMessage("You must be in the lobby to spectate!");
+                sender.sendMessage(MM.deserialize("<red>You must be in the lobby to spectate!</red>"));
                 return;
             }
 
             int replayId = context.get(id);
             if (!gamePlayer.replayIDs.contains(replayId)) {
-                sender.sendMessage("You do not have access to this replay!");
+                sender.sendMessage(MM.deserialize("<red>You do not have access to that replay!</red>"));
                 return;
             }
 
             Replay replay = Main.REPLAY_MANAGER.loadReplay(replayId);
             if (replay == null) {
-                sender.sendMessage("Replay not found!");
+                sender.sendMessage(MM.deserialize("<red>Replay not found!</red>"));
                 return;
             }
 
@@ -50,7 +54,7 @@ public class ReplayCommand extends Command {
             sender.sendMessage(Main.getTransferMessage("replay", replayInstance));
             gamePlayer.setInstance(replayInstance, new Pos(0, 140, 0));
 
-            sender.sendMessage("Replay started!");
+            sender.sendMessage(MM.deserialize("<green>Replaying " + replayId + "</green>"));
 
         }, id);
 

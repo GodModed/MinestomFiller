@@ -1,5 +1,6 @@
 package social.godmode.commands;
 
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.command.builder.arguments.ArgumentEnum;
@@ -14,13 +15,15 @@ import java.util.UUID;
 
 public class ColorCommand extends Command {
 
+    private static final MiniMessage MM = MiniMessage.miniMessage();
+
     public ColorCommand() {
         super("playcolor", "color");
 
         Argument<FillerColor> colorArgument = new ArgumentEnum<>("color", FillerColor.class);
 
         setDefaultExecutor((sender, context) -> {
-            sender.sendMessage("");
+            sender.sendMessage("/playcolor <color>");
         });
 
         addSyntax((sender, context) -> {
@@ -28,7 +31,7 @@ public class ColorCommand extends Command {
             GameInstance game = AbstractFillerInstance.getGame(player);
 
             if (!player.inGame || game == null) {
-                sender.sendMessage("You need to be in a game");
+                sender.sendMessage(MM.deserialize("<red>You are not in a game!</red>"));
                 return;
             }
 
@@ -38,7 +41,7 @@ public class ColorCommand extends Command {
             boolean isSender = fillerPlayer.playerUUID == player.getUuid();
 
             if (!isSender && player.rank != PlayerRank.OWNER) {
-                sender.sendMessage("You can't move for other players!");
+                sender.sendMessage(MM.deserialize("<red>It is not your turn!</red>"));
                 return;
             }
 

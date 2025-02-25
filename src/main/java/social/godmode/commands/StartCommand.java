@@ -1,5 +1,6 @@
 package social.godmode.commands;
 
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.minestom.server.command.builder.Command;
 import net.minestom.server.command.builder.arguments.Argument;
 import net.minestom.server.command.builder.arguments.minecraft.ArgumentEntity;
@@ -13,6 +14,8 @@ import social.godmode.user.GamePlayer;
 import social.godmode.user.PlayerRank;
 
 public class StartCommand extends Command {
+
+    private static final MiniMessage MM = MiniMessage.miniMessage();
 
     public StartCommand() {
         super("startgame", "start");
@@ -38,12 +41,12 @@ public class StartCommand extends Command {
             GamePlayer senderGamePlayer = (GamePlayer) sender;
 
             if (gamePlayer == null) {
-                sender.sendMessage("Player not found!");
+                sender.sendMessage(MM.deserialize("<red>Player not found!</red>"));
                 return;
             }
 
             if (GameInstance.isInGame(gamePlayer)) {
-                sender.sendMessage("Player is already in a game!");
+                sender.sendMessage(MM.deserialize("<red>Player is already in a game!</red>"));
                 return;
             }
 
