@@ -40,6 +40,8 @@ public class GrantCommand extends Command {
             gamePlayer.setRank(rank);
             gamePlayer.saveStats();
 
+            gamePlayer.refreshCommands();
+
             sender.sendMessage(MM.deserialize("<green>" + player.getUsername() + " has been granted " + rank.getPrefix()));
             player.sendMessage(MM.deserialize("<green>You have been granted " + rank.getPrefix() + "</green>"));
 
